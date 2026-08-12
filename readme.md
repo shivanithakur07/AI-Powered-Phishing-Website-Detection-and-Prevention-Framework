@@ -2,7 +2,9 @@
 
 **A Hybrid Ensemble Approach Combining URL-Based, Content-Based, and Reputation-Based Threat Intelligence**
 
-![PhishShield UI]("C:\Users\thaku\OneDrive\Pictures\Screenshots\Screenshot 2026-08-12 143800.png")
+![PhishShield UI]
+<img width="1917" height="830" alt="image" src="https://github.com/user-attachments/assets/d6ad6262-4dc5-4493-93ce-bd3b16da1bb8" />
+
 
 ---
 
