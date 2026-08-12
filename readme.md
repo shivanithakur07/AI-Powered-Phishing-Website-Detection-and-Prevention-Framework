@@ -267,7 +267,7 @@ Module B (content/NLP) carries the most weight (60%) and achieves 90% accuracy w
 
 | Legitimate Website Analysis | Phishing Website Analysis |
 | :---: | :---: |
-| ![Legitimate Result](legit.png) | ![Phishing Result](Phishing.png) |
+|<img width="1222" height="641" alt="image" src="https://github.com/user-attachments/assets/9952e7ba-da9f-421a-8d79-8b2cfe50c5eb" />| <img width="1326" height="676" alt="image" src="https://github.com/user-attachments/assets/ac94983a-166a-48cf-a56f-3362d03aceb3" />|
 
 ---
 
