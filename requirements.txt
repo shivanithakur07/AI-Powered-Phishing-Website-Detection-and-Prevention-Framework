@@ -9,3 +9,5 @@ python-dotenv
 beautifulsoup4
 tldextract
 matplotlib
+Flask-SQLAlchemy
+Flask-CORS
