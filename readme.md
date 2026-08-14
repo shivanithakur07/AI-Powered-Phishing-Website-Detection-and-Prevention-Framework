@@ -52,7 +52,7 @@ This project builds a **three-module hybrid framework** that fuses URL heuristic
 | Blacklist/reputation systems | URLhaus, VirusTotal, Google Safe Browsing | High precision on known threats | High latency in flagging new ("zero-hour") phishing |
 | Hybrid/ensemble systems | Combining 2+ of the above | Higher robustness, reduced single-point failure | Increased system complexity |
 
-*[Expand this section with 8–15 cited papers from IEEE/Springer/ACM relevant to each row above.]*
+
 
 **Research Gap:** Few systems combine all three signal types (URL heuristics + content/NLP + reputation) with graceful degradation and known-legitimate domain handling — this is the gap this project addresses.
 
