@@ -43,6 +43,7 @@ This project builds a **three-module hybrid framework** that fuses URL heuristic
 ---
 
 ## 2. Related Work
+## 2.1 Detection Approaches — Category-Level Comparison
 
 | Approach | Representative Method | Strength | Limitation |
 |---|---|---|---|
@@ -56,6 +57,29 @@ This project builds a **three-module hybrid framework** that fuses URL heuristic
 
 **Research Gap:** Few systems combine all three signal types (URL heuristics + content/NLP + reputation) with graceful degradation and known-legitimate domain handling — this is the gap this project addresses.
 
+## 2.2 Comparison with Prior Papers (2020–2026)
+Phishing detection research over the past six years (2020–2026) has moved through three broad waves: (1) classical and hybrid ensemble ML on URL/lexical features, (2) deep learning on content and structural page features (CNNs, RNNs, transformers), and (3) graph-based and multi-modal hybrids that combine URL structure with HTML/hyperlink context. The table below positions this project's three-signal (URL + content + reputation) fusion approach against representative published work from each wave — full references are listed in Appendix C.
+| Year | Study | Signal(s) Used | Core Method | Reported Result | Gap vs. This Framework |
+|---|---|---|---|---|---|
+| 2021 | Indrasiri et al. | URL (lexical/statistical) | Expandable Random Gradient Stacked Voting Classifier (ERG-SVC) ensemble | Robust, high-accuracy prediction with low error rate on URL feature sets | URL-only ensemble; no live content or reputation signal, no real-time page fetch |
+| 2022 | Kalabarige et al. | URL (lexical/statistical) | Multilayer stacked ensemble learning | High detection accuracy on benchmark URL feature datasets | URL-only; single-signal stacking, no fusion with content or reputation modules |
+| 2021 | Mourtaji et al. | URL | Hybrid rule-based scoring + CNN | Reported strong detection on curated URL sets | Combines a rule layer with a model, similar in spirit to this project's fusion, but stays URL-only — no content or threat-intel confirmation |
+| 2022 | Bilot et al. (PhishGNN) | URL + hyperlink graph structure | Graph Neural Network (GCN/ClusterGCN variants) | ~99.7% accuracy on a custom PhishTank/Tranco-derived dataset | State-of-the-art accuracy but requires crawling a site's link graph — heavier, less interpretable, and still has no external reputation check |
+| 2022 | Ariyadasa et al. | URL + HTML | Long-term Recurrent Convolutional Network + Graph Convolutional Network | Evaluated on tens of thousands of pages | Two-signal deep hybrid; no rule-based fast path and no reputation-feed fusion |
+| 2022 | Elsadig et al. | Content (page/URL text) | BERT-based deep learning | Reported strong precision on phishing text classification | Content-only; misses reputation/zero-hour blacklist confirmation and lightweight URL pre-screening |
+| 2024 | Opara et al. | Raw URL + HTML | Deep hybrid model | Reported improved robustness over URL-only baselines | Two-signal only; no fusion with external threat intelligence, no known-domain override |
+| 2024 | Agagu et al. | URL | Hybrid ensemble ML | Benchmarked on labeled URL datasets | URL-only, no content or reputation module |
+| 2024 | Sahingoz et al. (DEPHIDES) | Content/sequence (page & URL text) | Deep learning comparison (CNN, RNN, attention networks) | 98.74% accuracy with the CNN variant | Content/sequence-only; heavier training/inference cost than a TF-IDF + linear model pipeline, no reputation-feed fusion |
+| 2025 | Lightweight hybrid MLP framework | Structural URL features | MLP tuned for real-time inference | Optimized for low-latency, real-time scoring | URL-only; trades signal breadth for speed, with no content or reputation fusion |
+ 
+**Where this project sits:** A large-scale survey covering more than 130 phishing-detection studies published between 2020 and 2024 found that most work concentrates on URL-only or URL+HTML hybrids, with comprehensive treatment of reputation/threat-intelligence fusion still uncommon. Consistent with that observation, nearly every table entry above uses at most **two** signal types (a model plus, at best, one other feature source), and none of them combine a rule-based fast path, a trained content classifier, *and* a live reputation feed in one pipeline. This project's fusion layer differs in three concrete ways:
+ 
+1. **Three independent signal families** (URL heuristics, content/NLP, reputation APIs) rather than one or two, so a weakness in one module (e.g., a page that fails to load) doesn't stall the whole verdict.
+2. **Graceful degradation with reweighting** — most hybrid/ensemble papers above assume all features are always available at inference time; this framework explicitly reweights toward the surviving modules when a module is unreachable.
+3. **A known-legitimate domain override** to correct for content-model false positives on minimalist legitimate pages — a practical deployment concern (evaluation sets in prior work) that is rarely addressed in benchmark-only studies.
+
+The trade-off is that this project favors an interpretable, low-latency rule layer (Module A) and a lightweight TF-IDF/linear-model layer (Module B) over the heavier GNN/transformer architectures used in some 2022–2024 work (e.g., PhishGNN, BERT-based classifiers) — prioritizing explainability and real-time deployability over squeezing out the last fraction of a percentage point of accuracy.
+
 ---
 
 ## 3. Proposed Framework
@@ -63,38 +87,89 @@ This project builds a **three-module hybrid framework** that fuses URL heuristic
 ### 3.1 System Architecture
 
 ```
-                    ┌──────────────────────┐
+                    ┌───────────────────────┐
    User submits →   │   Flask Web App       │
    URL (with        │   (app.py)            │
-   protocol dropdown)└───────────┬───────────┘
+protocol dropdown)  └───────────┬───────────┘
                                 │
-               ┌────────────────┼────────────────┐
+               ┌────────────────┼─────────────────┐
                ▼                ▼                 ▼
-      ┌────────────────┐ ┌──────────────┐ ┌──────────────────┐
+      ┌─────────────────┐ ┌──────────────┐ ┌───────────────────┐
       │ Module A        │ │ Module B     │ │ Module C          │
       │ URL Heuristic   │ │ Content/NLP  │ │ Reputation Check  │
       │ Risk Scorer     │ │ Model        │ │ (URLhaus,         │
       │ (Rule-based,    │ │ (TF-IDF +    │ │  VirusTotal)      │
       │  no ML)         │ │  LR + SVM)   │ │                   │
       └────────┬────────┘ └──────┬───────┘ └────────┬──────────┘
-               │                 │                   │
-               └────────┬────────┴───────────────────┘
+               │                 │                  │
+               └────────┬────────┴──────────────────┘
                         ▼
-               ┌─────────────────────┐
-               │  Fusion Layer         │
-               │  (Weighted Voting:    │
+               ┌──────────────────────┐
+               │  Fusion Layer        │
+               │  (Weighted Voting:   │
                │   A=5%, B=60%, C=35%)│
-               │  + known domain check │
+               │  + known domain check│
                └──────────┬───────────┘
                           ▼
                Final Verdict + Confidence Score
 ```
+
+### Module A — URL Heuristic Risk Scorer
+Role in the pipeline: first-pass, zero-latency screen. Runs on the raw URL string alone, before any network call is made, so it always returns a result even if the target page never loads or every external API is down.
+Inputs: the raw URL string only (scheme, host, path, query).
+Processing: 12 independent rule checks (HTTPS presence, IP-as-domain, subdomain count, suspicious TLD, URL length, special-character ratio, @-symbol confusion, non-standard port, known shortener domains, login/brand keywords, phishing bait keywords, excessive percent-encoding), each contributing a fixed weight toward a 0–1 risk score.
+Output: a deterministic risk score (0–1) plus the list of individual checks that fired, which is what makes the module's contribution explainable to the end user.
+Why it's weighted lowest (5%) in normal fusion: URL structure alone is easy for attackers to sanitize (a clean-looking URL can still host a phishing page), so it is treated as a fast corroborating signal rather than the primary decision-maker — except in the degraded-mode formula below, where it becomes the dominant signal.
+
+### Module B — Content-Based NLP Classifier
+Role in the pipeline: the primary decision-maker (60% fusion weight), because page content is what actually reveals brand impersonation and credential-harvesting intent.
+Inputs: live-fetched HTML — visible text, form actions, iframe usage, password-field presence, favicon domain, and title/brand-domain match.
+Processing: visible page text is vectorized with TF-IDF; this is combined with 10 hand-engineered structural/DOM features (num_forms, has_password_field, num_iframes, num_scripts, num_links, external_form_action, title_brand_mismatch, favicon_mismatch, has_meta_refresh, right_click_disabled). Two models — Logistic Regression and Linear SVM — are trained on this representation and their outputs are averaged into an ensemble score.
+Output: a phishing-probability score plus the specific structural flags that were triggered (e.g., "external form action" or "title/domain mismatch"), again for explainability.
+Operational note: because this module requires a live page fetch, it is the slowest and least reliable of the three (pages can be offline, geo-blocked, or timeout) — page fetches are parallelized with a ThreadPoolExecutor (10 workers) to keep latency reasonable, and the fusion layer has an explicit fallback for when this module can't return a result.
+
+### Module C — Reputation-Based Verification
+Role in the pipeline: a high-precision confirmation signal (35% fusion weight) that catches known-bad infrastructure the other two modules might miss, and is the only module that can catch a threat purely from external intelligence rather than the URL/content of a single request.
+Inputs: the normalized URL, checked against two external threat-intelligence feeds — URLhaus (malware/phishing match via an Auth-Key header) and VirusTotal (multi-engine scan results via a base64-encoded URL lookup).
+Processing: each source returns a binary flag; if either source flags the URL it is marked phishing, and an all-clean result from both returns 0.0.
+Output: a binary reputation flag (or "no signal" if both APIs are unreachable).
+Trade-off: highest precision on already-catalogued threats, but blind to brand-new ("zero-hour") phishing domains that haven't been reported yet — which is precisely why it is not weighted higher than Module B.
 
 ### 3.2 Design Principles
 - **Graceful degradation:** If Module C (external API) or Module B (page fetch) is unreachable, the system still returns a verdict using available modules with adjusted weights.
 - **Explainability:** Each module's contribution and flagged signals are surfaced to the user, not just a binary verdict.
 - **Known-legitimate override:** Well-known domains (Google, GitHub, Amazon, etc.) are hard-coded to prevent false positives from Module B's content model on minimalist pages.
 - **Protocol-aware:** Users select https:// or http:// via a dropdown — the system defaults to https:// and validates that a protocol is always present.
+ ```mermaid
+flowchart TD
+    A[User submits URL + protocol] --> B[Module A: URL Heuristic Score]
+    B --> C{Module A score < 0.15\nAND domain in known-legit list?}
+    C -->|Yes| D[Verdict: LEGITIMATE\noverride, skip Module B/C]
+    C -->|No| E[Fetch live page for Module B]
+    E --> F{Page fetch succeeded?}
+    F -->|Yes| G[Module B: Content/NLP Score]
+    F -->|No| H[Module B unavailable\nfallback formula]
+    G --> I[Query Module C: URLhaus + VirusTotal]
+    H --> J{Module C reachable?}
+    I --> K{Module C reachable?}
+    K -->|Yes| L[Fuse A=5% / B=60% / C=35%]
+    K -->|No| M[Fuse A=5% / B=95%\nneutral C=0.5]
+    J -->|Yes, A >= 0.35| N[Fuse A=85% / C=15%]
+    J -->|Yes, A < 0.35| O[Fuse A=15% / C=85%\nweighted toward reputation]
+    J -->|No| P[Insufficient signal\nreturn Module A score only]
+    L --> Q{Final score}
+    M --> Q
+    N --> Q
+    O --> Q
+    Q -->|>= 0.6| R[PHISHING]
+    Q -->|0.35 - 0.6| S[SUSPICIOUS]
+    Q -->|< 0.35| T[LEGITIMATE]
+    D --> U[Return verdict + confidence + per-module breakdown]
+    R --> U
+    S --> U
+    T --> U
+    P --> U
+```
 
 ---
 
