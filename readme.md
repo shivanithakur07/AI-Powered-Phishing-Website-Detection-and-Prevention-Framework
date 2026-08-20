@@ -244,6 +244,7 @@ flowchart TD
 ```
 AI-Powered Phishing Website Detection and Prevention Framework/
 ├── app.py                          # Flask application (routes, fusion, Module B/C integration)
+├── models_db.py                    # SQLAlchemy models: ScanHistory, Feedback (SQLite)
 ├── moduleA.py                      # Module A: URL heuristic risk scorer (rule-based, no ML)
 ├── moduleB.py                      # Module B: Content/NLP classifier training + evaluation
 ├── moduleC.py                      # Module C: Reputation checks (URLhaus, VirusTotal)
@@ -251,17 +252,29 @@ AI-Powered Phishing Website Detection and Prevention Framework/
 ├── Datasets/
 │   └── urls_labeled.csv            # Labeled URLs for Module B training
 ├── models/                         # Saved .pkl models (module_b_*)
-├── data/processed/
-│   ├── html_cache/                 # Cached scraped HTML
-│   └── module_b_dataset.csv        # Cached content features
-├── outputs/                        # Training metrics and plots
+├── outputs/                        # Training metrics and plots (confusion matrices, ROC, top terms)
 ├── templates/
-│   └── index.html                  # Web UI (dark/light theme, protocol dropdown)
+│   └── index.html                  # Legacy server-rendered UI (dark/light theme, protocol dropdown)
+├── frontend/                       # React + Vite SPA (primary UI)
+│   ├── src/
+│   │   ├── App.jsx                 # Router shell
+│   │   ├── pages/
+│   │   │   ├── Home.jsx            # URL submission + verdict view
+│   │   │   ├── Dashboard.jsx       # Stats/trend charts (recharts)
+│   │   │   └── HistoryPage.jsx     # Paginated scan history
+│   │   └── main.jsx
+│   ├── package.json
+│   ├── vite.config.js
+│   └── Dockerfile                  # Multi-stage build → served via Nginx
+├── Dockerfile                      # Backend image (gunicorn)
+├── docker-compose.yml              # Two-service stack: backend (5000) + frontend (80)
+├── database.db                     # SQLite DB (auto-created by Flask on first run)
 ├── .env                            # API keys (URLHAUS_API_KEY, VT_API_KEY)
 ├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
+ 
 
 ### 5.3 Setup Instructions
 ```bash
